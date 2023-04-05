@@ -1,7 +1,10 @@
-# random-pose-generator
+# Random Pose Generator - by controlnetposes.com
 
 
 Example on how to use it, current only windows build is made and exe can be downloaded from release section.
+
+https://github.com/dinilvalsan/random-pose-generator/releases/tag/v1.0.0
+
 
 https://user-images.githubusercontent.com/38812233/230072602-99be9037-fa8d-4910-a96a-ed0a42dd5bf4.mp4
 
