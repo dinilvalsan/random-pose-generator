@@ -2,6 +2,7 @@
 
 
 Example on how to use it, current only windows build is made and exe can be downloaded from release section.
+If you are using localhost url, please dont forget to enable --api launch flag for automatic 1111
 
 https://github.com/dinilvalsan/random-pose-generator/releases/tag/v1.0.0
 
