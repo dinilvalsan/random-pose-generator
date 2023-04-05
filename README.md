@@ -12,8 +12,7 @@ https://user-images.githubusercontent.com/38812233/230072602-99be9037-fa8d-4910-
 <br/>
 
 <b>A small tutorial on how to load controlnet and custom models with colab (last ben repo), which also be used with this release </b>
-<br/>
-<br/>
+
 https://user-images.githubusercontent.com/38812233/230072721-e8ca4465-ce55-41ed-ad1c-c1eefd67e694.mp4
 
 <br/>
