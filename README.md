@@ -24,3 +24,4 @@ the image generation community.
 
 Code is really simple and made with pyqt5 with only one file, Any pr related to progress bar to show user the status of generation would be really appreciated.
 
+Updates coming soon
