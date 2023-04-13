@@ -10,4 +10,4 @@ https://www.youtube.com/watch?v=9v5WErZpTV8&ab_channel=AiImagegeneration
 4. Currently tested for colab and localhost only but should run for runpod instance also
 5. Prompt generation framework
 
-![prompt-flow-01](https://user-images.githubusercontent.com/38812233/231772424-40a4d3ed-261c-43a3-8998-1f7f95e5166c.png)
+![focus-01](https://user-images.githubusercontent.com/38812233/231787524-32424d02-fc6c-4eb2-a1b8-b37bdce34410.png)
