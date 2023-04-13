@@ -1,4 +1,3 @@
-
 import random
 from PyQt5 import QtWidgets, QtGui, QtCore
 import base64
@@ -6,8 +5,12 @@ import requests
 import validators
 import os
 from PyQt5.QtWidgets import QMessageBox
-
+import configparser
 import re
+from PIL import Image
+import io
+
+generation_index = 0
 
 
 def is_valid_folder(folder_path):
@@ -70,7 +73,7 @@ def get_prompt():
 
 
 def generate_image():
-
+    global generation_index
     folder_path = folder_path_label.text()
     if not folder_path:
         QtWidgets.QMessageBox.warning(window, "Warning", "Please select a controlnet images folder first")
@@ -89,7 +92,6 @@ def generate_image():
     if prompt == '':
         return
 
-
     if not model_name:
         QtWidgets.QMessageBox.warning(window, "Warning", "Please select a controlnet model")
         return
@@ -101,6 +103,7 @@ def generate_image():
     if len(image_files):
         generate_image_button.setEnabled(False)
         generation_success = True
+
         for n in range(len(image_files)):
             if not generation_success:
                 break
@@ -130,6 +133,7 @@ def generate_image():
             cfg_scale_value = cfg_scale.value()
             steps_value = steps.value()
             restore_face_value = restore_face.isChecked()
+            save_generated_prompts_value = save_generated_prompts.isChecked()
 
             # Create the data for the POST request
             data = {
@@ -158,45 +162,66 @@ def generate_image():
             # Make the POST request to the API endpoint
             try:
                 response = requests.post(api_endpoint_value + "/sdapi/v1/txt2img", json=data).json()
-
                 generated_folder_path = os.path.join(folder_path, "generated")
-
+                if not os.path.exists(generated_folder_path):
+                    os.makedirs(generated_folder_path)
                 if not os.path.exists(generated_folder_path):
                     os.makedirs(generated_folder_path)
 
-                with open(generated_folder_path + "/output_" + image_files[n], "wb") as fh:
-                    try:
-                        file_content = base64.b64decode(response["images"][0])
-                        fh.write(file_content)
-                    except Exception as e:
-                        print(str(e))
-                with open(generated_folder_path + "/output_" + image_files[n]+'.txt', "w") as fh:
-                    try:
-                        file_content = prompt
-                        fh.write(file_content)
-                    except Exception as e:
-                        print(str(e))
-                with open(generated_folder_path + "/" + image_files[n], "wb") as fh:
+                try:
+                    file_content = base64.b64decode(response["images"][0])
+                    # create an image object from the decoded data
+                    image = Image.open(io.BytesIO(file_content))
+
+                    # generate a filename using the index variable
+                    if generation_filename_suffix.text():
+                        filename = f"{generation_index:05d}_preview_{generation_filename_suffix.text()}.{image_extension}"
+                    else:
+                        filename = f"{generation_index:05d}_preview.{image_extension}"
+
+                    # save the image using the settings from the config file or the default values
+                    image.save(os.path.join(generated_folder_path, filename), image_format, quality=image_quality)
+                except Exception as e:
+                    print(str(e))
+                if save_generated_prompts_value:
+                    # generate a filename using the index variable
+                    if generation_filename_suffix.text():
+                        filename = f"{generation_index:05d}_prompt_{generation_filename_suffix.text()}.txt"
+                    else:
+                        filename = f"{generation_index:05d}_prompt.txt"
+                    with open(os.path.join(generated_folder_path, filename), "w") as fh:
+                        try:
+                            file_content = prompt
+                            fh.write(file_content)
+                        except Exception as e:
+                            print(str(e))
+                if generation_filename_suffix.text():
+                    filename = f"{generation_index:05d}_mask_{generation_filename_suffix.text()}.jpg"
+                else:
+                    filename = f"{generation_index:05d}_mask.jpg"
+                with open(os.path.join(generated_folder_path, filename), "wb") as fh:
                     try:
                         file_content = base64.b64decode(response["images"][1])
                         fh.write(file_content)
                     except Exception as e:
                         print(str(e))
-
                 if os.path.exists(current_image_path):
                     os.remove(current_image_path)
+                generation_index += 1
             except Exception as e:
                 msg_box = QMessageBox()
                 msg_box.setIcon(QMessageBox.Warning)
                 msg_box.setText("An error occurred. Please check the automatic console for more info.")
                 msg_box.setStandardButtons(QMessageBox.Retry | QMessageBox.Ok)
-                return_value = msg_box.exec()
+                msg_box_return_value = msg_box.exec()
                 generation_success = False
-                if return_value == QMessageBox.Retry:
+                if msg_box_return_value == QMessageBox.Retry:
                     generate_image()
                 else:
+                    generation_index = 0
                     break
         if generation_success:
+            generation_index = 0
             QtWidgets.QMessageBox.information(window, "Success", "All images generated")
         generate_image_button.setEnabled(True)
     else:
@@ -271,8 +296,53 @@ window.setWindowTitle("Batch processing by Controlnetposes.com")
 layout = QtWidgets.QVBoxLayout()
 
 form_layout = QtWidgets.QFormLayout()
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+running_instance_url = config.get('Settings', 'running_instance_url')
+# set default values for the image format and quality
+default_format = 'JPEG'
+default_quality = 75
+
+# try to read the image format and quality settings from the config file
+try:
+    image_format = config.get('ImageSettings', 'format')
+    if image_format not in ['JPEG', 'PNG']:
+        msg = f"Invalid format: {image_format}. Using default format: {default_format}"
+        QtWidgets.QMessageBox.warning(None, "Invalid Format", msg)
+        image_format = default_format
+except (configparser.NoSectionError, configparser.NoOptionError):
+    msg = f"Format not found in config file. Using default format: {default_format}"
+    QtWidgets.QMessageBox.warning(None, "Format Not Found", msg)
+    image_format = default_format
+
+try:
+    image_quality = config.getint('ImageSettings', 'quality')
+    if image_format == 'JPEG' and not (1 <= image_quality <= 95):
+        msg = f"Invalid quality for JPEG: {image_quality}. Using default quality: {default_quality}"
+        QtWidgets.QMessageBox.warning(None, "Invalid Quality", msg)
+        image_quality = default_quality
+    elif image_format == 'PNG' and not (1 <= image_quality <= 9):
+        msg = f"Invalid quality for PNG: {image_quality}. Using default quality: {default_quality}"
+        QtWidgets.QMessageBox.warning(None, "Invalid Quality", msg)
+        image_quality = default_quality
+except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
+    msg = f"Quality not found or invalid in config file. Using default quality: {default_quality}"
+    QtWidgets.QMessageBox.warning(None, "Quality Not Found or Invalid", msg)
+    image_quality = default_quality
+
+# infer the image extension from the image format
+if image_format == 'JPEG':
+    image_extension = 'jpg'
+elif image_format == 'PNG':
+    image_extension = 'png'
+else:
+    # default to jpg if the format is not recognized
+    image_extension = 'jpg'
+
+
 api_endpoint = QtWidgets.QLineEdit()
-api_endpoint.setText("Paste running instance url Automatic1111")
+api_endpoint.setText(running_instance_url)
 api_endpoint.setFixedWidth(500)
 form_layout.addRow("API Endpoint:", api_endpoint)
 
@@ -296,6 +366,9 @@ form_layout.addRow("Steps:", steps)
 
 restore_face = QtWidgets.QCheckBox()
 form_layout.addRow("Restore Face:", restore_face)
+
+save_generated_prompts = QtWidgets.QCheckBox()
+form_layout.addRow("Save prompts (batch processing):", save_generated_prompts)
 
 sampler_dropdown = QtWidgets.QComboBox()
 sampler_dropdown.setFixedWidth(250)
@@ -365,6 +438,11 @@ prompt_layout.addWidget(test_random_prompt_button, stretch=1)
 prompt_layout.addWidget(output_label, stretch=3)
 
 form_layout.addRow(prompt_layout)
+
+generation_filename_suffix = QtWidgets.QLineEdit()
+generation_filename_suffix.setText("")
+generation_filename_suffix.setFixedWidth(500)
+form_layout.addRow("Generation file name suffix:", generation_filename_suffix)
 
 generate_image_button = QtWidgets.QPushButton("Generate Images")
 generate_image_button.clicked.connect(generate_image)
