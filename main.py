@@ -10,7 +10,7 @@ import re
 from PIL import Image
 import io
 
-generation_index = 0
+
 
 
 def is_valid_folder(folder_path):
@@ -73,7 +73,7 @@ def get_prompt():
 
 
 def generate_image():
-    global generation_index
+
     folder_path = folder_path_label.text()
     if not folder_path:
         QtWidgets.QMessageBox.warning(window, "Warning", "Please select a controlnet images folder first")
@@ -174,10 +174,11 @@ def generate_image():
                     image = Image.open(io.BytesIO(file_content))
 
                     # generate a filename using the index variable
+                    filename, file_extension = os.path.splitext(image_files[n])
                     if generation_filename_suffix.text():
-                        filename = f"{generation_index:05d}_preview_{generation_filename_suffix.text()}.{image_extension}"
+                        filename = f"{filename}_{generation_filename_suffix.text()}.{image_extension}"
                     else:
-                        filename = f"{generation_index:05d}_preview.{image_extension}"
+                        filename = f"{filename}_preview.{image_extension}"
 
                     # save the image using the settings from the config file or the default values
                     image.save(os.path.join(generated_folder_path, filename), image_format, quality=image_quality)
@@ -185,21 +186,19 @@ def generate_image():
                     print(str(e))
                 if save_generated_prompts_value:
                     # generate a filename using the index variable
+                    filename, file_extension = os.path.splitext(image_files[n])
                     if generation_filename_suffix.text():
-                        filename = f"{generation_index:05d}_prompt_{generation_filename_suffix.text()}.txt"
+                        filename = f"{filename}_prompt_{generation_filename_suffix.text()}.txt"
                     else:
-                        filename = f"{generation_index:05d}_prompt.txt"
+                        filename = f"{filename}_prompt.txt"
                     with open(os.path.join(generated_folder_path, filename), "w") as fh:
                         try:
                             file_content = prompt
                             fh.write(file_content)
                         except Exception as e:
                             print(str(e))
-                if generation_filename_suffix.text():
-                    filename = f"{generation_index:05d}_mask_{generation_filename_suffix.text()}.jpg"
-                else:
-                    filename = f"{generation_index:05d}_mask.jpg"
-                with open(os.path.join(generated_folder_path, filename), "wb") as fh:
+
+                with open(os.path.join(generated_folder_path, image_files[n]), "wb") as fh:
                     try:
                         file_content = base64.b64decode(response["images"][1])
                         fh.write(file_content)
@@ -207,7 +206,6 @@ def generate_image():
                         print(str(e))
                 if os.path.exists(current_image_path):
                     os.remove(current_image_path)
-                generation_index += 1
             except Exception as e:
                 msg_box = QMessageBox()
                 msg_box.setIcon(QMessageBox.Warning)
@@ -218,10 +216,8 @@ def generate_image():
                 if msg_box_return_value == QMessageBox.Retry:
                     generate_image()
                 else:
-                    generation_index = 0
                     break
         if generation_success:
-            generation_index = 0
             QtWidgets.QMessageBox.information(window, "Success", "All images generated")
         generate_image_button.setEnabled(True)
     else:
